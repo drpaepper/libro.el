@@ -392,9 +392,16 @@ NOTE is the book note to mark."
 
 (cl-defstruct libro-ui-book id title author status)
 
-(defun libro-ui-get-books ()
-  "Get books."
-  (let ((books (vulpea-db-query-by-tags-every (list "library" "book"))))
+(defun libro-ui-get-books (&optional status)
+  "Get books.
+Optional STATUS to limit selection"
+  (let* ((books (vulpea-db-query-by-tags-every (list "library" "book")))
+         (books (if status
+                    (seq-filter (lambda (b) (member
+                                             (vulpea-meta-get b "status")
+                                             status))
+                                books)
+                  books)))
     (--map
      (make-libro-ui-book
       :id (vulpea-note-id it)
@@ -464,10 +471,12 @@ If OTHER-WINDOW, visit the NOTE in another window."
       (libro-ui-mode))
     (libro-ui-update)))
 
-(defun libro-ui-update ()
-  "Update bookshelf."
+(defun libro-ui-update (&optional status)
+  "Update bookshelf.
+Optional STATUS is a list of status to use to filter."
   (interactive)
-  (let* ((books (libro-ui-get-books)))
+  (let* ((status (or status '("unread" "reading" "read")))
+         (books (libro-ui-get-books status)))
     (setq tabulated-list-format libro-ui-columns
           tabulated-list-entries
           (->> books
@@ -510,6 +519,31 @@ If OTHER-WINDOW, visit the NOTE in another window."
     (if (member status '("unread" "read"))
         (libro-mark-as-reading book))
     (libro-ui-update)))
+
+(defun libro-ui-show-read ()
+  "Show read books on the bookshelf."
+  (interactive)
+  (libro-ui-update '("read")))
+
+(defun libro-ui-show-unread ()
+  "Show unread books on the bookshelf."
+  (interactive)
+  (libro-ui-update '("unread")))
+
+(defun libro-ui-show-reading ()
+  "Show books currently being read in the bookshelf."
+  (interactive)
+  (libro-ui-update '("reading")))
+
+(defun libro-ui-show-to-read ()
+  "Show book available to start reading bookshelf."
+  (interactive)
+  (libro-ui-update '("read" "unread")))
+
+(defun libro-ui-show-all ()
+  "Reset bookshelf view."
+  (interactive)
+  (libro-ui-update))
 
 (provide 'libro)
 
