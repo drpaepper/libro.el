@@ -269,14 +269,7 @@ Optional TITLE of book"
                        (append
                         `(("authors" . ,authors)
                           ("year" . ,year)
-                          ("status" . ,status))))))
-         (x (when (eq status 'unread)
-              (if (y-or-n-p "Create reading todo? ")
-                  (vulpea-create (format "TODO Read %s" title)
-                                 nil
-                                 :body (format "[[id:%s][%s]]" (vulpea-note-id note) title)
-                                 :tags '("library")
-                                 :parent (car (vulpea-db-query-by-file-path libro-bookshelf)))))))
+                          ("status" . ,status)))))))
     note))
 
 ;;;###autoload
