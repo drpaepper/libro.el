@@ -48,7 +48,7 @@ As an author note has no metadata of its own, we set this to nil to
 allow for both custom metadata and coverage by collection health.")
 
 ;;;###autoload
-(defun vino-schema-setup ()
+(defun libro-schema-setup ()
   "Register schemata for libro types."
   (interactive)
   (vulpea-schema-define 'libro-book

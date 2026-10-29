@@ -34,6 +34,8 @@
 ;;; Code:
 
 (require 'vulpea)
+(require 'libro-schema)
+(require 'libro-ui)
 
 ;;;###autoload
 (defun libro-setup ()
@@ -43,6 +45,7 @@
            '("library"
              "author"
              "book")))
+
 ;;;###autoload
 (defvar libro-reading-states
   '(unread
