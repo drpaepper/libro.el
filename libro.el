@@ -477,8 +477,12 @@ Optional STATUS is a list of status to use to filter."
                                     (libro-ui-book-author other))
                            (string< (libro-ui-book-title it)
                                     (libro-ui-book-title other))
-                         (string< (libro-ui-book-author it)
-                                  (libro-ui-book-author other))))
+                         (if (string= (car (last (string-split (libro-ui-book-author it))))
+                                      (car (last (string-split (libro-ui-book-author other)))))
+                             (string< (car (string-split (libro-ui-book-author it)))
+                                      (car (string-split (libro-ui-book-author other))))
+                           (string< (car (last (string-split (libro-ui-book-author it))))
+                                    (car (last (string-split (libro-ui-book-author other))))))))
                (--map
                 (list
                  (libro-ui-book-id it)
