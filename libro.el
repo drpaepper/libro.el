@@ -36,7 +36,7 @@
 (require 'vulpea)
 
 (defvar libro-schema-book-fields
-  `((:key "authors" :type note :required t :target0tags ("book" "author"))
+  `((:key "author" :type note :required t :target0tags ("book" "author"))
     (:key "year" :type number :required t)
     (:key "status" :type symbol :required t :one-of ,(lambda (_note) libro-reading-states))
     (:key "finished_on" :type date :required nil :multiple t))
@@ -241,7 +241,7 @@ Return `vulpea-note'."
 
 Optional TITLE of book"
   (interactive)
-  (let* ((authors (libro-authors-select))
+  (let* ((author (libro-author-select))
          (year (libro--repeat-while
                 #'read-number
                 (lambda (v) (< v 0))
@@ -267,7 +267,7 @@ Optional TITLE of book"
                 :meta (-filter
                        #'cdr
                        (append
-                        `(("authors" . ,authors)
+                        `(("author" . ,author)
                           ("year" . ,year)
                           ("status" . ,status)))))))
     note))
@@ -399,7 +399,7 @@ Optional STATUS to limit selection"
      (make-libro-ui-book
       :id (vulpea-note-id it)
       :title (vulpea-note-title it)
-      :author (vulpea-note-title (vulpea-db-get-by-id (vulpea-note-meta-get it "authors" 'link)))
+      :author (vulpea-note-title (vulpea-db-get-by-id (vulpea-note-meta-get it "author" 'link)))
       :status (vulpea-note-meta-get it "status"))
      books)))
 
