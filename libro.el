@@ -542,6 +542,136 @@ Optional STATUS is a list of status to use to filter."
   (interactive)
   (libro-ui-update))
 
+(defvar libro-ui-report-columns
+  `[("ID" 5 t)
+    ("Title" 44 t . (:pad-right 2))
+    ("Author" 26 t . (:pad-right 2))])
+
+(defun libro-ui-report-get-books (start end)
+  "Get books. START and END define the date range of read books."
+  (let* ((books (vulpea-db-query-by-tags-every (list "library" "book")))
+         (books (seq-filter (lambda (b)
+                              (and
+                               (vulpea-meta-get b "finished_on")
+                               t))
+                            books))
+         (books (seq-filter (lambda (b)
+                              (and (seq-some
+                                    (lambda (x)
+                                      (time-less-p start (date-to-time (replace-regexp-in-string "[\\[\\]]" "" x))))
+                                    (vulpea-meta-get-list b "finished_on"))
+                                   (seq-some
+                                    (lambda (x)
+                                      (time-less-p (date-to-time (replace-regexp-in-string "[\\[\\]]" "" x)) end))
+                                    (vulpea-meta-get-list b "finished_on"))))
+                            books)))
+    (--map
+     (make-libro-ui-book
+      :id (vulpea-note-id it)
+      :title (vulpea-note-title it)
+      :author (vulpea-note-title (vulpea-db-get-by-id (vulpea-note-meta-get it "author" 'link)))
+      :status (vulpea-note-meta-get it "status"))
+     books)))
+
+(defun libro-ui-report-render-cell (key book)
+  "Render KEY cell for BOOK."
+  (pcase (s-downcase key)
+    (`"id" (propertize (libro-ui-book-id book) 'face 'font-lock-property-use-face))
+    (`"title" (propertize (libro-ui-book-title book) 'face 'link))
+    (`"author" (propertize (libro-ui-book-author book) 'face 'font-lock-regexp-face))))
+
+(defun libro-ui-report-render-header (books start end)
+  "Render header line for BOOKS read between START and END."
+  (concat
+   "Total "
+   (propertize (format "%d" (seq-length books)) 'face 'bold)
+   " books between "
+   (format-time-string "%Y-%m-%d" start)
+   " and "
+   (format-time-string "%Y-%m-%d" end)
+   "."))
+
+(defvar-local libro-ui-report--columns-idx nil)
+
+(defun libro-ui-report-update (&optional start end)
+  "Update bookshelf.
+Optional START and END define time range."
+  (interactive)
+  (let* ((status '("unread" "reading" "read"))
+         (start (or start (encode-time (decoded-time-add (decode-time) (make-decoded-time :year -1)))))
+         (end (or end (encode-time (decode-time))))
+         (books (libro-ui-report-get-books start end)))
+    (setq tabulated-list-format libro-ui-report-columns
+          tabulated-list-entries
+          (->> books
+               (--sort (if (string= (libro-ui-book-author it)
+                                    (libro-ui-book-author other))
+                           (string< (libro-ui-book-title it)
+                                    (libro-ui-book-title other))
+                         (if (string= (car (last (string-split (libro-ui-book-author it))))
+                                      (car (last (string-split (libro-ui-book-author other)))))
+                             (string< (car (string-split (libro-ui-book-author it)))
+                                      (car (string-split (libro-ui-book-author other))))
+                           (string< (car (last (string-split (libro-ui-book-author it))))
+                                    (car (last (string-split (libro-ui-book-author other))))))))
+               (--map
+                (list
+                 (libro-ui-book-id it)
+                 (apply
+                  #'vector
+                  (-map (lambda (col)
+                          (libro-ui-report-render-cell (car col) it))
+                        libro-ui-report-columns)))))
+          tabulated-list-sort-key nil
+          tabulated-list-use-header-line nil
+          header-line-format (libro-ui-report-render-header books start end)
+          libro-ui-report--columns-idx (seq-map-indexed (lambda (c idx) (cons (car c) idx))
+                                                        libro-ui-report-columns)))
+  (tabulated-list-init-header)
+  (tabulated-list-print 'remember-pos))
+
+(defvar libro-ui-report-mode-map
+  (let ((map (make-sparse-keymap)))
+    (prog1 map
+      (suppress-keymap map)
+      (define-key map "q" #'libro-ui-quit)
+      (define-key map (kbd "<RET>") #'libro-ui-visit)))
+  "Keymap for `libro-ui-report-mode'.")
+
+(define-derived-mode libro-ui-report-mode tabulated-list-mode "libro-report"
+  "Major mode for listing book entries read."
+  (setq tabulated-list-printer #'tabulated-list-print-entry)
+  (setq tabulated-list-padding 2))
+
+(defun libro-ui-report (&optional start end)
+  "Open buffer show books read within time range.
+Optional START and END define time range."
+  (interactive)
+  (let ((buffer (get-buffer-create "*libro-report*")))
+    (switch-to-buffer buffer)
+    (unless (eq major-mode 'libro-ui-report-mode)
+      (libro-ui-report-mode))
+    (libro-ui-report-update start end)))
+
+(defun libro-ui-report-ytd ()
+  "Open libro-ui-report for the year to date."
+  (interactive)
+  (let ((start (encode-time 0 0 0 1 1 (nth 5 (decode-time)))))
+    (libro-ui-report start)))
+
+(defun libro-ui-report-last-year ()
+  "Open libro-ui-report for the previous year."
+  (interactive)
+  (let ((start (encode-time 0 0 0 1 1
+                            (nth 5 (decoded-time-add
+                                    (decode-time)
+                                    (make-decoded-time :year -1)))))
+        (end (encode-time 0 0 0 31 12
+                          (nth 5 (decoded-time-add
+                                  (decode-time)
+                                  (make-decoded-time :year -1))))))
+    (libro-ui-report start end)))
+
 (provide 'libro)
 
 ;;; libro.el ends here
